@@ -20,11 +20,17 @@ export interface ConversationRow {
 export async function ensureConversation(env: Env, business: Business, kind: string, channelId: number | null, contactRef: string, contactName = '') {
   const existing = await env.DB.prepare('SELECT * FROM conversations WHERE business_id = ? AND kind = ? AND contact_ref = ?')
     .bind(business.id, kind, contactRef).first<ConversationRow>();
+  const phone = kind === 'whatsapp' ? contactRef.replace(/\D/g, '') : '';
+  // El modo dueño se recalcula siempre: si el dueño quita un número, ese chat pierde las herramientas de dueño.
+  const isOwnerNow = phone && business.agent.ownerPhones.includes(phone) ? 1 : 0;
   if (existing) {
+    if (kind !== 'test' && existing.is_owner !== isOwnerNow) {
+      await env.DB.prepare('UPDATE conversations SET is_owner = ? WHERE id = ?').bind(isOwnerNow, existing.id).run();
+      existing.is_owner = isOwnerNow;
+    }
     if (contactName && !existing.contact_name) await env.DB.prepare('UPDATE conversations SET contact_name = ? WHERE id = ?').bind(contactName, existing.id).run();
     return existing;
   }
-  const phone = kind === 'whatsapp' ? contactRef.replace(/\D/g, '') : '';
   let customer = phone
     ? await env.DB.prepare('SELECT id FROM customers WHERE business_id = ? AND phone = ? LIMIT 1').bind(business.id, phone).first<{ id: number }>()
     : null;
@@ -34,12 +40,11 @@ export async function ensureConversation(env: Env, business: Business, kind: str
       'INSERT INTO customers (business_id, first_name, last_name, phone, contact_channel, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id',
     ).bind(business.id, first || '', rest.join(' '), phone, kind, Date.now()).first<{ id: number }>();
   }
-  const isOwner = phone && business.agent.ownerPhones.includes(phone) ? 1 : 0;
   return (await env.DB.prepare(
     `INSERT INTO conversations (business_id, channel_id, customer_id, kind, contact_ref, contact_name, is_owner, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(business_id, kind, contact_ref) DO UPDATE SET contact_name = contact_name RETURNING *`,
-  ).bind(business.id, channelId, customer!.id, kind, contactRef, contactName, isOwner, Date.now()).first<ConversationRow>())!;
+  ).bind(business.id, channelId, customer!.id, kind, contactRef, contactName, isOwnerNow, Date.now()).first<ConversationRow>())!;
 }
 
 /** Devuelve el id de la conversación si el bot debe responder; null si no. */

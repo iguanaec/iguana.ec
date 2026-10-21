@@ -22,10 +22,20 @@ export { ConversationDO } from './conversation-do';
 
 const app = new Hono<AppEnv>();
 
+const originAllowed = (env: Env, origin: string) => {
+  const allowed = env.PANEL_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+  return allowed.includes(origin) || origin.endsWith('.workers.dev') || origin.endsWith('.pages.dev') || origin === 'https://iguana.ec' || origin.endsWith('.iguana.ec');
+};
+
 app.use('/api/*', async (c, next) => {
-  const allowed = c.env.PANEL_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+  // CSRF: la cookie de sesión es SameSite=None (panel en otro dominio), así que toda petición que cambia datos
+  // y viene de un navegador debe traer un Origin permitido.
+  const origin = c.req.header('Origin');
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && origin && !originAllowed(c.env, origin)) {
+    return c.json({ error: 'Origen no permitido.' }, 403);
+  }
   return cors({
-    origin: (origin) => (allowed.includes(origin) || origin.endsWith('.workers.dev') || origin.endsWith('.pages.dev') || origin === 'https://iguana.ec' || origin.endsWith('.iguana.ec') ? origin : null),
+    origin: (o) => (originAllowed(c.env, o) ? o : null),
     credentials: true,
     allowHeaders: ['Content-Type', 'Authorization', 'X-Business-Id'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

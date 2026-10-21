@@ -34,7 +34,7 @@ settings.put('/', requireRole('admin'), async (c) => {
   try { new Intl.DateTimeFormat('en', { timeZone: tz }); } catch { throw bad('Zona horaria inválida.'); }
   const profile = { ...prev.businessProfile, ...(body.businessProfile || {}) };
   const settings: Settings = {
-    aiMode: body.aiMode === 'owner' ? 'owner' : 'customers',
+    aiMode: body.aiMode === 'owner' ? 'owner' : 'client',
     appointmentDurationMinutes: clamp(body.appointmentDurationMinutes, 5, 600, prev.appointmentDurationMinutes),
     businessTimezone: tz,
     slotIntervalMinutes: clamp(body.slotIntervalMinutes, 5, 240, prev.slotIntervalMinutes),
@@ -136,8 +136,10 @@ aiDocuments.post('/', requireRole('admin'), requireModule('asistente'), async (c
   const name = str(body.name, 200);
   const mime = str(body.mimeType, 100) || 'text/plain';
   let content = String(body.content ?? '');
+  if (mime !== 'application/pdf' && content.length > 500_000) throw bad('El documento es demasiado grande.');
   if (!name || !content) throw bad('El documento está vacío.');
   if (mime === 'application/pdf') {
+    if (content.length > 2.8 * 1024 * 1024) throw bad('El PDF supera los 2 MB.');
     // Los PDF se convierten a texto una sola vez con Gemini (más barato que enviarlos en cada mensaje).
     const { extractPdfText } = await import('../agent/gemini');
     content = await extractPdfText(c.env, content);

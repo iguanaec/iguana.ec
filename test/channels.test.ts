@@ -186,3 +186,18 @@ async function fetchWebhook(body: string, signature: string) {
   const { SELF } = await import('cloudflare:test');
   return SELF.fetch('https://api.test/webhooks/meta', { method: 'POST', body, headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': signature } });
 }
+
+describe('modo dueño', () => {
+  it('quitar el número del dueño le quita las herramientas de dueño a ese chat', async () => {
+    const { token } = await registerBusiness('peluqueria');
+    const { phoneId } = await connectWhatsApp(token);
+    await api('/api/agent/config', { method: 'PUT', body: { ownerPhones: ['593977777777'] }, token });
+    const t = await processInbound(env, parseWebhook(env, waText(phoneId, '593977777777', 'wamid.O1', 'resumen de hoy'))[0]);
+    let row = await env.DB.prepare('SELECT is_owner FROM conversations WHERE id = ?').bind(t!.conversationId).first<{ is_owner: number }>();
+    expect(row?.is_owner).toBe(1);
+    await api('/api/agent/config', { method: 'PUT', body: { ownerPhones: [] }, token });
+    await processInbound(env, parseWebhook(env, waText(phoneId, '593977777777', 'wamid.O2', 'otra vez'))[0]);
+    row = await env.DB.prepare('SELECT is_owner FROM conversations WHERE id = ?').bind(t!.conversationId).first<{ is_owner: number }>();
+    expect(row?.is_owner).toBe(0);
+  });
+});

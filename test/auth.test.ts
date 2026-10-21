@@ -94,3 +94,13 @@ describe('acceso y giro bloqueado', () => {
     expect((await api('/api/auth/me', { token: fresh })).data.business.locked).toBe(true);
   });
 });
+
+describe('seguridad', () => {
+  it('rechaza peticiones que cambian datos desde otro sitio (CSRF)', async () => {
+    const { token } = await registerBusiness('peluqueria');
+    const evil = await api('/api/customers', { body: { first_name: 'X' }, token, headers: { Origin: 'https://sitio-malicioso.com' } });
+    expect(evil.status).toBe(403);
+    const ok = await api('/api/customers', { body: { first_name: 'Y' }, token, headers: { Origin: 'http://localhost:5500' } });
+    expect(ok.status).toBe(200);
+  });
+});

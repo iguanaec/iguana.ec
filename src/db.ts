@@ -5,7 +5,7 @@ import { json } from './lib/http';
 export interface BusinessHours { day: number; enabled: boolean; start: string; end: string }
 
 export interface Settings {
-  aiMode: 'customers' | 'owner';
+  aiMode: 'client' | 'owner';
   appointmentDurationMinutes: number;
   businessTimezone: string;
   slotIntervalMinutes: number;
@@ -65,7 +65,7 @@ export interface Business {
 
 export function defaultSettings(name = '', tz = 'America/Guayaquil'): Settings {
   return {
-    aiMode: 'customers',
+    aiMode: 'client',
     appointmentDurationMinutes: 60,
     businessTimezone: tz,
     slotIntervalMinutes: 15,

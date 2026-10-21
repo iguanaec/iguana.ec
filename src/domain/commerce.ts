@@ -36,6 +36,7 @@ export async function createOrder(env: Env, businessId: number, input: {
   customerId: number | null; items: OrderItemInput[]; address?: string; note?: string; origin: string;
 }) {
   if (!input.items?.length) throw bad('El pedido no tiene productos.');
+  if (input.items.length > 50) throw bad('Un pedido puede tener hasta 50 productos distintos.');
   const ids = [...new Set(input.items.map((i) => Number(i.product_id)))];
   const { results } = await env.DB.prepare(
     `SELECT * FROM products WHERE business_id = ? AND enabled = 1 AND id IN (${ids.map(() => '?').join(',')})`,
