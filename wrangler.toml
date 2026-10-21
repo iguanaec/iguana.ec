@@ -1,0 +1,53 @@
+name = "iguana-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Crons: cada 15 min (recordatorios, lista de espera) y diario 08:00 Ecuador (resumen al dueño, reactivación).
+[triggers]
+crons = ["*/15 * * * *", "0 13 * * *"]
+
+[vars]
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_THINKING_LEVEL = "minimal"
+# Precio por millón de tokens en USD (para medir el costo por negocio).
+GEMINI_PRICE_INPUT = "0.25"
+GEMINI_PRICE_OUTPUT = "1.50"
+META_GRAPH_VERSION = "v24.0"
+# Orígenes del panel permitidos (separados por coma).
+PANEL_ORIGINS = "http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8080,http://localhost:8080,null"
+# Espera para agrupar ráfagas de mensajes antes de responder (ms).
+BURST_WINDOW_MS = "4000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "iguana"
+database_id = "00000000-0000-0000-0000-000000000000" # reemplazar tras `wrangler d1 create iguana`
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "00000000000000000000000000000000" # reemplazar tras `wrangler kv namespace create CACHE`
+
+[[queues.producers]]
+binding = "INBOUND"
+queue = "iguana-inbound"
+
+[[queues.consumers]]
+queue = "iguana-inbound"
+max_batch_size = 20
+max_batch_timeout = 1
+max_retries = 3
+dead_letter_queue = "iguana-inbound-dlq"
+
+[[durable_objects.bindings]]
+name = "CONVERSATIONS"
+class_name = "ConversationDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ConversationDO"]
+
+# Secretos (wrangler secret put ...):
+#   GEMINI_API_KEY, META_APP_ID, META_APP_SECRET, META_VERIFY_TOKEN,
+#   META_WA_CONFIG_ID, META_PAGES_CONFIG_ID, ENCRYPTION_KEY (32 bytes en base64), BOOTSTRAP_TOKEN

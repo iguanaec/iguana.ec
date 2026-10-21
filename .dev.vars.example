@@ -1,0 +1,10 @@
+GEMINI_API_KEY=
+META_APP_ID=
+META_APP_SECRET=
+META_VERIFY_TOKEN=
+META_WA_CONFIG_ID=
+META_PAGES_CONFIG_ID=
+# openssl rand -base64 32
+ENCRYPTION_KEY=
+# Token de un solo uso para crear el primer super admin (POST /api/setup)
+BOOTSTRAP_TOKEN=
